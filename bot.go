@@ -5,7 +5,7 @@ import (
 	"net/rpc"
 	"time"
 
-	"github.com/bigrooms/vision/tunnel"
+	"github.com/bigroom/vision/tunnel"
 	"github.com/nickvanw/ircx"
 	"github.com/paked/configure"
 	"github.com/sorcix/irc"
@@ -29,6 +29,8 @@ func main() {
 	conf.Parse()
 
 	bot := ircx.Classic(*server, *name)
+
+	log.Println("Connecting to IRC")
 	if err = bot.Connect(); err != nil {
 		log.Panicln("Unable to connect to that IRC server", err)
 	}
@@ -37,7 +39,8 @@ func main() {
 	bot.HandleFunc(irc.PING, pingHandler)
 	bot.HandleFunc(irc.PRIVMSG, msgHandler)
 
-	client, err = rpc.DialHTTP("tcp", "localhost:6060")
+	log.Println("Connecting to RPC")
+	client, err = rpc.DialHTTP("tcp", "localhost:8080")
 	if err != nil {
 		log.Panicln("Unable to connect: ", err)
 	}
@@ -53,6 +56,8 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 		From:    m.Name,
 		Content: m.Trailing,
 		Time:    time.Now(),
+		Host:    *server,
+		Channel: m.Params[0],
 	}
 
 	err := client.Call("Message.Dispatch", &args, &reply)
@@ -66,6 +71,7 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 }
 
 func registerHandler(s ircx.Sender, m *irc.Message) {
+	log.Println("Registered")
 	s.Send(&irc.Message{
 		Command: irc.JOIN,
 		Params:  []string{*channels},
