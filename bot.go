@@ -16,9 +16,10 @@ var (
 
 	conf = configure.New()
 
-	name     = conf.String("name", "roomer", "The nick of your bot")
-	server   = conf.String("server", "chat.freenode.net:6667", "Host:Port to connect to")
-	channels = conf.String("chan", "#roomtest", "Host:Port to connect to")
+	name       = conf.String("name", "roomer", "The nick of your bot")
+	server     = conf.String("server", "chat.freenode.net:6667", "Host:Port for the bot to connect to")
+	serverName = conf.String("server-name", "chat.freenode.net:6667", "Host:Port for others to connect to")
+	channels   = conf.String("chan", "#roomtest", "Host:Port to connect to")
 )
 
 func main() {
@@ -56,7 +57,7 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 		From:    m.Name,
 		Content: m.Trailing,
 		Time:    time.Now(),
-		Host:    *server,
+		Host:    *serverName,
 		Channel: m.Params[0],
 	}
 
