@@ -20,6 +20,7 @@ var (
 	server     = conf.String("server", "chat.freenode.net:6667", "Host:Port for the bot to connect to")
 	serverName = conf.String("server-name", "chat.freenode.net:6667", "Host:Port for others to connect to")
 	channels   = conf.String("chan", "#roomtest", "Host:Port to connect to")
+	dispatch   = conf.String("dispatch", "localhost:8080", "Where to dispatch things")
 )
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 	bot.HandleFunc(irc.PRIVMSG, msgHandler)
 
 	log.Println("Connecting to RPC")
-	client, err = rpc.DialHTTP("tcp", "localhost:8080")
+	client, err = rpc.DialHTTP("tcp", *dispatch)
 	if err != nil {
 		log.Panicln("Unable to connect: ", err)
 	}
