@@ -7,8 +7,9 @@ RUN go get github.com/nickvanw/ircx
 RUN go get github.com/paked/configure
 RUN go get github.com/sorcix/irc
 
-ADD . /go/src/github.com/bigroom/roomer
+RUN go get github.com/codegangsta/gin
 
+# ADD . /go/src/github.com/bigroom/roomer for deployment...
 
 WORKDIR /go/src/github.com/bigroom/roomer
-CMD go run bot.go
+CMD gin -i -b "roomer"
