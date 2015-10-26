@@ -9,7 +9,10 @@ RUN go get github.com/sorcix/irc
 
 RUN go get github.com/codegangsta/gin
 
+RUN go get github.com/liudng/dogo
+
 # ADD . /go/src/github.com/bigroom/roomer for deployment...
 
 WORKDIR /go/src/github.com/bigroom/roomer
+
 CMD gin -i -b "roomer"

@@ -26,7 +26,6 @@ var (
 )
 
 func main() {
-	var err error
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
 
@@ -34,25 +33,16 @@ func main() {
 
 	bot := ircx.Classic(*server, *name)
 
-	log.Println("Connecting to IRC")
-	if err = bot.Connect(); err != nil {
-		if !reconnect(err) {
-			return
-		}
-
-		log.Panicln("Unable to connect to that IRC server", err)
-	}
+	log.Println("Connecting to the IRC server")
+	reconnect(bot.Connect, "IRC")
 
 	bot.HandleFunc(irc.RPL_WELCOME, registerHandler)
 	bot.HandleFunc(irc.PING, pingHandler)
 	bot.HandleFunc(irc.PRIVMSG, msgHandler)
 
-	log.Println("Connecting to RPC")
+	log.Println("Connecting to RPC server")
 
-	if err := connect(); err != nil {
-		log.Println("Unable to connect: ", err)
-		return
-	}
+	reconnect(connectRPC, "RPC")
 
 	bot.HandleLoop()
 }
@@ -69,12 +59,21 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 		Channel: m.Params[0],
 	}
 
-	err := client.Call("Message.Dispatch", &args, &reply)
-	if err != nil {
-		if !reconnect(err) {
-			return
+	reconnect(func() error {
+		log.Println("Trying to send message...")
+		err := client.Call("Message.Dispatch", &args, &reply)
+		if err == nil {
+			return nil
 		}
-	}
+
+		log.Println("Couldnt send message, trying reconnect")
+
+		if err := connectRPC(); err != nil {
+			return err
+		}
+
+		return err
+	}, "RPC")
 
 	if !reply.OK {
 		log.Println("Was not given the OK")
@@ -97,29 +96,39 @@ func pingHandler(s ircx.Sender, m *irc.Message) {
 	})
 }
 
-// reconnect attempts to reconnect to the rpc server it returns a bool
-// depending on whether or not it was successful
-func reconnect(err error) bool {
-	if err == rpc.ErrShutdown || err == io.EOF || err == io.ErrUnexpectedEOF {
-		log.Println("Was disconnected from the RPC server")
-		timer := time.NewTimer(time.Second * reconnectDelay / 2)
-		<-timer.C
-
-		reconnectDelay = reconnectDelay * reconnectDelay
-
-		if err := connect(); err == nil {
-			return true
-		}
-
-		log.Println("Failed to reconnect")
-
-		return false
+// reconnect will continuosly attempt to reconnect to the RPC server
+func reconnect(f func() error, name string) {
+	err := f()
+	if err == nil {
+		return
 	}
 
-	return false
+	log.Printf("Was disconnected from the %v server\n", name)
+
+	delay := 2
+	for {
+		timer := time.NewTimer(time.Second * time.Duration(delay) / 2)
+		<-timer.C
+
+		delay *= delay
+
+		err = f()
+		if err == nil {
+			log.Printf("[%v] was saved by reconnect", name)
+			return
+		}
+
+		if !isNetworkError(err) {
+			log.Printf("[%v] Came across a non network error:", name, err)
+		}
+	}
 }
 
-func connect() error {
+func isNetworkError(err error) bool {
+	return err == rpc.ErrShutdown || err == io.EOF || err == io.ErrUnexpectedEOF
+}
+
+func connectRPC() error {
 	var err error
 	client, err = rpc.DialHTTP("tcp", *dispatch)
 
