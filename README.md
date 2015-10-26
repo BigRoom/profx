@@ -1,2 +1,2 @@
 # bot
-The bot portion of Big Room.
+The bot portion of Big Room. Yeah, we employ cyborgs too.
