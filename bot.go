@@ -31,7 +31,7 @@ func main() {
 
 	conf.Parse()
 
-	bot := ircx.Classic(*server, *name)
+	bot := ircx.Classic(*serverName, *name)
 
 	log.Println("Connecting to the IRC server")
 	reconnect(bot.Connect, "IRC")
