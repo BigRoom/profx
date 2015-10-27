@@ -15,4 +15,5 @@ RUN go get github.com/bigroom/roomer
 
 WORKDIR /go/src/github.com/bigroom/roomer
 
+#CMD go build && ./roomer
 CMD gin -i -b "roomer"
