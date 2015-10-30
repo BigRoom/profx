@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bigroom/vision/tunnel"
+	"github.com/getsentry/raven-go"
 	"github.com/nickvanw/ircx"
 	"github.com/paked/configure"
 	"github.com/sorcix/irc"
@@ -14,6 +15,7 @@ import (
 
 var (
 	client *rpc.Client
+	sentry *raven.Client
 
 	conf           = configure.New()
 	reconnectDelay = time.Duration(2)
@@ -23,13 +25,22 @@ var (
 	serverName = conf.String("server-name", "chat.freenode.net:6667", "Host:Port for others to connect to")
 	channels   = conf.String("chan", "#roomtest", "Host:Port to connect to")
 	dispatch   = conf.String("dispatch", "localhost:8080", "Where to dispatch things")
+	sentryDSN  = conf.String("sentry-dsn", "", "The sentry DSN")
 )
 
 func main() {
+	var err error
+
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
 
 	conf.Parse()
+
+	sentry, err = raven.NewClient(*sentryDSN, nil)
+	if err != nil {
+		log.Println("Unable to connect to sentry:", err)
+		return
+	}
 
 	bot := ircx.Classic(*serverName, *name)
 
@@ -66,9 +77,12 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 			return nil
 		}
 
+		sentry.CaptureErrorAndWait(err, nil)
+
 		log.Println("Couldnt send message, trying reconnect")
 
 		if err := connectRPC(); err != nil {
+			sentry.CaptureErrorAndWait(err, nil)
 			return err
 		}
 
@@ -82,18 +96,26 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 
 func registerHandler(s ircx.Sender, m *irc.Message) {
 	log.Println("Registered")
-	s.Send(&irc.Message{
+	err := s.Send(&irc.Message{
 		Command: irc.JOIN,
 		Params:  []string{*channels},
 	})
+
+	if err != nil {
+		sentry.CaptureErrorAndWait(err, nil)
+	}
 }
 
 func pingHandler(s ircx.Sender, m *irc.Message) {
-	s.Send(&irc.Message{
+	err := s.Send(&irc.Message{
 		Command:  irc.PONG,
 		Params:   m.Params,
 		Trailing: m.Trailing,
 	})
+
+	if err != nil {
+		sentry.CaptureErrorAndWait(err, nil)
+	}
 }
 
 // reconnect will continuosly attempt to reconnect to the RPC server
@@ -117,6 +139,8 @@ func reconnect(f func() error, name string) {
 			log.Printf("[%v] was saved by reconnect", name)
 			return
 		}
+
+		sentry.CaptureErrorAndWait(err, nil)
 
 		if !isNetworkError(err) {
 			log.Printf("[%v] Came across a non network error:", name, err)

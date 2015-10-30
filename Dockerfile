@@ -11,6 +11,8 @@ RUN go get github.com/codegangsta/gin
 
 RUN go get github.com/bigroom/roomer
 
+RUN go get github.com/getsentry/raven-go
+
 # ADD . /go/src/github.com/bigroom/roomer for deployment...
 
 WORKDIR /go/src/github.com/bigroom/roomer
