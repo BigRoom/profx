@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"log"
 	"net/rpc"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/getsentry/raven-go"
 	"github.com/nickvanw/ircx"
 	"github.com/paked/configure"
+	log "github.com/sirupsen/logrus"
 	"github.com/sorcix/irc"
 )
 
@@ -38,20 +38,28 @@ func main() {
 
 	sentry, err = raven.NewClient(*sentryDSN, nil)
 	if err != nil {
-		log.Println("Unable to connect to sentry:", err)
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Fatal("Unable to get connect to sentry")
+
 		return
 	}
 
 	bot := ircx.Classic(*serverName, *name)
 
-	log.Println("Connecting to the IRC server")
+	log.WithFields(log.Fields{
+		"address": *serverName,
+	}).Info("Connecting to the IRC server")
+
 	reconnect(bot.Connect, "IRC")
 
 	bot.HandleFunc(irc.RPL_WELCOME, registerHandler)
 	bot.HandleFunc(irc.PING, pingHandler)
 	bot.HandleFunc(irc.PRIVMSG, msgHandler)
 
-	log.Println("Connecting to RPC server")
+	log.WithFields(log.Fields{
+		"address": *dispatch,
+	}).Info("Connecting to RPC server")
 
 	reconnect(connectRPC, "RPC")
 
@@ -59,7 +67,10 @@ func main() {
 }
 
 func msgHandler(s ircx.Sender, m *irc.Message) {
-	log.Println(m.Params, m.Trailing)
+	log.WithFields(log.Fields{
+		"params":   m.Params,
+		"trailing": m.Trailing,
+	}).Info("Sending messsage")
 
 	var reply tunnel.MessageReply
 	args := tunnel.MessageArgs{
@@ -71,7 +82,7 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 	}
 
 	reconnect(func() error {
-		log.Println("Trying to send message...")
+		log.Debug("Trying to send message...")
 		err := client.Call("Message.Dispatch", &args, &reply)
 		if err == nil {
 			return nil
@@ -79,7 +90,7 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 
 		sentry.CaptureErrorAndWait(err, nil)
 
-		log.Println("Couldnt send message, trying reconnect")
+		log.Error("Couldnt send message, trying reconnect")
 
 		if err := connectRPC(); err != nil {
 			sentry.CaptureErrorAndWait(err, nil)
@@ -90,12 +101,12 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 	}, "RPC")
 
 	if !reply.OK {
-		log.Println("Was not given the OK")
+		log.Error("Reply was not ok")
 	}
 }
 
 func registerHandler(s ircx.Sender, m *irc.Message) {
-	log.Println("Registered")
+	log.Debug("Registered")
 	err := s.Send(&irc.Message{
 		Command: irc.JOIN,
 		Params:  []string{*channels},
@@ -125,7 +136,9 @@ func reconnect(f func() error, name string) {
 		return
 	}
 
-	log.Printf("Was disconnected from the %v server\n", name)
+	log.WithFields(log.Fields{
+		"name": name,
+	}).Error("Was disconnected from server")
 
 	delay := 2
 	for {
@@ -136,14 +149,19 @@ func reconnect(f func() error, name string) {
 
 		err = f()
 		if err == nil {
-			log.Printf("[%v] was saved by reconnect", name)
+			log.WithFields(log.Fields{
+				"name": name,
+			}).Info("Reconnected to server")
 			return
 		}
 
 		sentry.CaptureErrorAndWait(err, nil)
 
 		if !isNetworkError(err) {
-			log.Printf("[%v] Came across a non network error:", name, err)
+			log.WithFields(log.Fields{
+				"name":  name,
+				"error": err,
+			}).Error("Got non-network error")
 		}
 	}
 }
