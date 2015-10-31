@@ -13,6 +13,7 @@ RUN go get github.com/bigroom/roomer
 
 RUN go get github.com/getsentry/raven-go
 RUN go get github.com/sirupsen/logrus
+RUN go get github.com/evalphobia/logrus_sentry
 
 # ADD . /go/src/github.com/bigroom/roomer for deployment...
 

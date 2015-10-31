@@ -5,17 +5,16 @@ import (
 	"net/rpc"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/bigroom/vision/tunnel"
-	"github.com/getsentry/raven-go"
+	"github.com/evalphobia/logrus_sentry"
 	"github.com/nickvanw/ircx"
 	"github.com/paked/configure"
-	log "github.com/sirupsen/logrus"
 	"github.com/sorcix/irc"
 )
 
 var (
 	client *rpc.Client
-	sentry *raven.Client
 
 	conf           = configure.New()
 	reconnectDelay = time.Duration(2)
@@ -36,7 +35,12 @@ func main() {
 
 	conf.Parse()
 
-	sentry, err = raven.NewClient(*sentryDSN, nil)
+	hook, err := logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+	})
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -44,6 +48,8 @@ func main() {
 
 		return
 	}
+
+	log.AddHook(hook)
 
 	bot := ircx.Classic(*serverName, *name)
 
@@ -82,18 +88,24 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 	}
 
 	reconnect(func() error {
+		fields := log.Fields{
+			"name":    "RPC",
+			"host":    args.Host,
+			"channel": args.Channel,
+		}
+
 		log.Debug("Trying to send message...")
 		err := client.Call("Message.Dispatch", &args, &reply)
 		if err == nil {
 			return nil
 		}
 
-		sentry.CaptureErrorAndWait(err, nil)
+		log.WithFields(fields).Error(err)
 
 		log.Error("Couldnt send message, trying reconnect")
 
 		if err := connectRPC(); err != nil {
-			sentry.CaptureErrorAndWait(err, nil)
+			log.WithFields(fields).Error(err)
 			return err
 		}
 
@@ -113,7 +125,10 @@ func registerHandler(s ircx.Sender, m *irc.Message) {
 	})
 
 	if err != nil {
-		sentry.CaptureErrorAndWait(err, nil)
+		log.WithFields(log.Fields{
+			"channel": *channels,
+			"host":    *serverName,
+		}).Error(err)
 	}
 }
 
@@ -125,7 +140,7 @@ func pingHandler(s ircx.Sender, m *irc.Message) {
 	})
 
 	if err != nil {
-		sentry.CaptureErrorAndWait(err, nil)
+		log.Error(err)
 	}
 }
 
@@ -136,9 +151,11 @@ func reconnect(f func() error, name string) {
 		return
 	}
 
-	log.WithFields(log.Fields{
+	fields := log.Fields{
 		"name": name,
-	}).Error("Was disconnected from server")
+	}
+
+	log.WithFields(fields).Error("Was disconnected from server")
 
 	delay := 2
 	for {
@@ -149,19 +166,17 @@ func reconnect(f func() error, name string) {
 
 		err = f()
 		if err == nil {
-			log.WithFields(log.Fields{
-				"name": name,
-			}).Info("Reconnected to server")
+			log.WithFields(fields).Info("Reconnected to server")
 			return
 		}
 
-		sentry.CaptureErrorAndWait(err, nil)
+		log.WithFields(fields).Error(err)
 
 		if !isNetworkError(err) {
 			log.WithFields(log.Fields{
-				"name":  name,
-				"error": err,
-			}).Error("Got non-network error")
+				"name": name,
+				"type": "non-network",
+			}).Error(err)
 		}
 	}
 }
