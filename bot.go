@@ -20,7 +20,6 @@ var (
 	reconnectDelay = time.Duration(2)
 
 	name       = conf.String("name", "roomer", "The nick of your bot")
-	server     = conf.String("server", "chat.freenode.net:6667", "Host:Port for the bot to connect to")
 	serverName = conf.String("server-name", "chat.freenode.net:6667", "Host:Port for others to connect to")
 	channels   = conf.String("chan", "#roomtest", "Host:Port to connect to")
 	dispatch   = conf.String("dispatch", "localhost:8080", "Where to dispatch things")
