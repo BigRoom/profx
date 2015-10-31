@@ -35,7 +35,7 @@ func main() {
 
 	conf.Parse()
 
-	_, err := logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
+	_, err = logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
 		log.PanicLevel,
 		log.FatalLevel,
 		log.ErrorLevel,
