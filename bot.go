@@ -35,7 +35,7 @@ func main() {
 
 	conf.Parse()
 
-	hook, err := logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
+	_, err := logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
 		log.PanicLevel,
 		log.FatalLevel,
 		log.ErrorLevel,
@@ -48,8 +48,6 @@ func main() {
 
 		return
 	}
-
-	log.AddHook(hook)
 
 	bot := ircx.Classic(*serverName, *name)
 
