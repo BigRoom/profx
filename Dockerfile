@@ -14,6 +14,7 @@ RUN go get github.com/bigroom/profx
 RUN go get github.com/getsentry/raven-go
 RUN go get github.com/sirupsen/logrus
 RUN go get github.com/evalphobia/logrus_sentry
+RUN go get github.com/bigroom/vision/models
 
 # ADD . /go/src/github.com/bigroom/roomer for deployment...
 

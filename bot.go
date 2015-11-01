@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/bigroom/vision/models"
 	"github.com/bigroom/vision/tunnel"
 	"github.com/evalphobia/logrus_sentry"
 	"github.com/nickvanw/ircx"
@@ -24,6 +25,12 @@ var (
 	channels   = conf.String("chan", "#roomtest", "Host:Port to connect to")
 	dispatch   = conf.String("dispatch", "localhost:8080", "Where to dispatch things")
 	sentryDSN  = conf.String("sentry-dsn", "", "The sentry DSN")
+
+	dbName    = conf.String("db-name", "postgres", "DB_NAME")
+	dbUser    = conf.String("db-user", "postgres", "DB_USER")
+	dbPass    = conf.String("db-pass", "postgres", "DB_PASS")
+	dbService = conf.String("db-service", "jarvis", "DB_SERVICE")
+	dbPort    = conf.String("db-port", "5432", "DB_PORT")
 )
 
 func main() {
@@ -33,6 +40,14 @@ func main() {
 	conf.Use(configure.NewEnvironment())
 
 	conf.Parse()
+
+	models.Init(
+		*dbUser,
+		*dbPass,
+		*dbService,
+		*dbPort,
+		*dbName,
+	)
 
 	_, err = logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
 		log.PanicLevel,
@@ -82,6 +97,13 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 		Time:    time.Now(),
 		Host:    *serverName,
 		Channel: m.Params[0],
+	}
+
+	msg, err := models.NewMessage(args.Content, args.From, args.Key())
+	if err != nil {
+		log.WithFields(log.Fields{
+			"message": msg,
+		}).Error(err)
 	}
 
 	reconnect(func() error {
