@@ -92,6 +92,18 @@ func inviteHandler(s ircx.Sender, m *irc.Message) {
 		"params":   m.Params,
 		"trailing": m.Trailing,
 	}).Info("Just got invite")
+
+	err := s.Send(&irc.Message{
+		Command: irc.JOIN,
+		Params:  []string{m.Params[1]},
+	})
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"params":   m.Params,
+			"trailing": m.Trailing,
+		}).Error(err)
+	}
 }
 
 func msgHandler(s ircx.Sender, m *irc.Message) {
