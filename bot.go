@@ -67,21 +67,31 @@ func main() {
 
 	log.WithFields(log.Fields{
 		"address": *serverName,
-	}).Info("Connecting to the IRC server")
+	}).Info("Starting connection to the IRC server")
 
 	reconnect(bot.Connect, "IRC")
 
 	bot.HandleFunc(irc.RPL_WELCOME, registerHandler)
 	bot.HandleFunc(irc.PING, pingHandler)
 	bot.HandleFunc(irc.PRIVMSG, msgHandler)
+	bot.HandleFunc(irc.INVITE, inviteHandler)
 
 	log.WithFields(log.Fields{
 		"address": *dispatch,
-	}).Info("Connecting to RPC server")
+	}).Info("Starting connection to RPC the server")
 
 	reconnect(connectRPC, "RPC")
 
 	bot.HandleLoop()
+
+	log.Println("finished")
+}
+
+func inviteHandler(s ircx.Sender, m *irc.Message) {
+	log.WithFields(log.Fields{
+		"params":   m.Params,
+		"trailing": m.Trailing,
+	}).Info("Just got invite")
 }
 
 func msgHandler(s ircx.Sender, m *irc.Message) {
