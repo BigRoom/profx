@@ -20,5 +20,5 @@ RUN go get github.com/bigroom/vision/models
 
 WORKDIR /go/src/github.com/bigroom/profx
 
+CMD gin -i -b "profx"
 #CMD go build && ./roomer
-CMD gin
