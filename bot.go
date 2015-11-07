@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net/rpc"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -38,7 +39,6 @@ func main() {
 
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
-
 	conf.Parse()
 
 	models.Init(
@@ -160,16 +160,20 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 
 func registerHandler(s ircx.Sender, m *irc.Message) {
 	log.Debug("Registered")
-	err := s.Send(&irc.Message{
-		Command: irc.JOIN,
-		Params:  []string{*channels},
-	})
 
-	if err != nil {
-		log.WithFields(log.Fields{
-			"channel": *channels,
-			"host":    *serverName,
-		}).Error(err)
+	for _, channel := range strings.Split(*channels, " ") {
+		err := s.Send(&irc.Message{
+			Command: irc.JOIN,
+			Params:  []string{channel},
+		})
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"channel": *channels,
+				"host":    *serverName,
+			}).Error(err)
+		}
+
 	}
 }
 
