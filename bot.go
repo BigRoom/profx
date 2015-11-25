@@ -128,6 +128,8 @@ func msgHandler(s ircx.Sender, m *irc.Message) {
 		}).Error(err)
 	}
 
+	args.ID = msg.ID
+
 	reconnect(func() error {
 		fields := log.Fields{
 			"name":    "RPC",
